@@ -1,0 +1,243 @@
+/* Packet Sniffer Page Styles */
+
+/* Hero Section */
+.hero {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: white;
+    padding: 100px 0;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hero p {
+    font-size: 1.2rem;
+    max-width: 600px;
+    margin: 0 auto;
+    opacity: 0.9;
+}
+
+/* Info Section */
+.info-section {
+    padding: 80px 0;
+    background-color: #f8f9fa;
+}
+
+.warning-box {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 20px;
+    margin: 30px 0;
+    border-radius: 4px;
+}
+
+.warning-box h3 {
+    color: #856404;
+    margin-top: 0;
+}
+
+/* Features Section */
+.features {
+    padding: 80px 0;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    margin-top: 40px;
+}
+
+.feature-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.feature-card h3 {
+    color: #0066cc;
+    margin-top: 0;
+}
+
+/* Demo Section */
+.demo-section {
+    padding: 80px 0;
+    background-color: #f8f9fa;
+}
+
+.demo-container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    margin-top: 30px;
+}
+
+.network-visualization {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    height: 100px;
+    position: relative;
+}
+
+.client, .server {
+    text-align: center;
+    width: 80px;
+}
+
+.device-icon {
+    font-size: 2rem;
+    margin-bottom: 5px;
+}
+
+.packet-stream {
+    flex-grow: 1;
+    height: 5px;
+    background-color: #e9ecef;
+    margin: 0 20px;
+    position: relative;
+}
+
+.packet {
+    position: absolute;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #0066cc;
+    top: -5px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.packet:hover {
+    transform: scale(1.5);
+}
+
+.packet.selected {
+    background-color: #ff3860;
+    transform: scale(1.5);
+}
+
+.packet-inspector {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 20px;
+    min-height: 200px;
+}
+
+.packet-data {
+    font-family: monospace;
+    white-space: pre-wrap;
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    min-height: 150px;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.controls button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+#startDemo {
+    background-color: #28a745;
+    color: white;
+}
+
+#startDemo:hover {
+    background-color: #218838;
+}
+
+#stopDemo {
+    background-color: #dc3545;
+    color: white;
+}
+
+#stopDemo:hover {
+    background-color: #c82333;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Tools Section */
+.tools-section {
+    padding: 80px 0;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-top: 40px;
+}
+
+.tool-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.tool-card h3 {
+    color: #0066cc;
+}
+
+.button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #0066cc;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    margin-top: 15px;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: #0056b3;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+    
+    .feature-grid, .tools-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .demo-container {
+        padding: 15px;
+    }
+}
