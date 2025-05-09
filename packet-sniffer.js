@@ -1,374 +1,363 @@
-import Head from 'next/head';
 import { useState, useEffect, useRef } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import styles from '../styles/PacketSniffer.module.css';
 
 export default function PacketSniffer() {
-  const [demoRunning, setDemoRunning] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedPackets, setCapturedPackets] = useState([]);
   const [selectedPacket, setSelectedPacket] = useState(null);
-  const [packets, setPackets] = useState([]);
-  const packetStreamRef = useRef(null);
-  const intervalRef = useRef(null);
-  const packetIdRef = useRef(0);
-
-  // Packet types and their colors
-  const packetTypes = [
-    { type: 'TCP', color: '#0066cc', direction: 'outgoing' },
-    { type: 'UDP', color: '#28a745', direction: 'outgoing' },
-    { type: 'TCP', color: '#0066cc', direction: 'incoming' },
-    { type: 'UDP', color: '#28a745', direction: 'incoming' },
-    { type: 'HTTP', color: '#fd7e14', direction: 'outgoing' },
-    { type: 'HTTP', color: '#fd7e14', direction: 'incoming' }
-  ];
-
-  // Sample packet data templates
-  const packetDataTemplates = {
-    TCP: {
-      outgoing: {
-        source: '192.168.1.5:54321',
-        destination: '203.0.113.10:80',
-        flags: 'SYN, ACK',
-        sequence: () => Math.floor(Math.random() * 1000000),
-        acknowledgment: () => Math.floor(Math.random() * 1000000),
-        window: () => Math.floor(Math.random() * 65535),
-        payload: 'Game client requesting server status'
-      },
-      incoming: {
-        source: '203.0.113.10:80',
-        destination: '192.168.1.5:54321',
-        flags: 'ACK',
-        sequence: () => Math.floor(Math.random() * 1000000),
-        acknowledgment: () => Math.floor(Math.random() * 1000000),
-        window: () => Math.floor(Math.random() * 65535),
-        payload: 'Server acknowledging client request'
-      }
-    },
-    UDP: {
-      outgoing: {
-        source: '192.168.1.5:49152',
-        destination: '203.0.113.10:27015',
-        length: () => Math.floor(Math.random() * 1000) + 100,
-        checksum: () => Math.floor(Math.random() * 65535).toString(16).padStart(4, '0'),
-        payload: 'Player position update data'
-      },
-      incoming: {
-        source: '203.0.113.10:27015',
-        destination: '192.168.1.5:49152',
-        length: () => Math.floor(Math.random() * 1000) + 100,
-        checksum: () => Math.floor(Math.random() * 65535).toString(16).padStart(4, '0'),
-        payload: 'Game world state update'
-      }
-    },
-    HTTP: {
-      outgoing: {
-        method: 'GET',
-        url: '/api/game/status',
-        headers: {
-          'User-Agent': 'GameClient/1.0',
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer xyz123...'
-        },
-        payload: ''
-      },
-      incoming: {
-        status: '200 OK',
-        headers: {
-          'Content-Type': 'application/json',
-          'Server': 'GameServer/2.1',
-          'Cache-Control': 'no-cache'
-        },
-        payload: '{"status":"online","players":1024,"uptime":"12h"}'
-      }
+  const [filter, setFilter] = useState('');
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const captureIntervalRef = useRef(null);
+  
+  // Start packet capture simulation
+  const startCapture = () => {
+    if (isCapturing) return;
+    
+    setIsCapturing(true);
+    
+    // Generate simulated packets at intervals
+    captureIntervalRef.current = setInterval(() => {
+      const newPacket = generateRandomPacket();
+      setCapturedPackets(prev => [...prev, newPacket]);
+    }, 800);
+  };
+  
+  // Stop packet capture simulation
+  const stopCapture = () => {
+    setIsCapturing(false);
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
     }
   };
-
-  const createPacket = () => {
-    if (!demoRunning) return;
+  
+  // Clear captured packets
+  const clearCapture = () => {
+    setCapturedPackets([]);
+    setSelectedPacket(null);
+  };
+  
+  // Generate a random packet for simulation
+  const generateRandomPacket = () => {
+    const protocols = ['TCP', 'UDP', 'HTTP', 'HTTPS', 'DNS', 'ICMP'];
+    const sources = ['192.168.1.5', '10.0.0.15', '172.16.0.10'];
+    const destinations = ['203.0.113.10', '198.51.100.5', '8.8.8.8', '104.21.32.35'];
+    const ports = [80, 443, 53, 21, 22, 25, 3389, 27015, 7777];
+    const sizes = [64, 128, 256, 512, 1024, 1500];
     
-    const packetTypeIndex = Math.floor(Math.random() * packetTypes.length);
-    const { type, color, direction } = packetTypes[packetTypeIndex];
+    const protocol = protocols[Math.floor(Math.random() * protocols.length)];
+    const source = sources[Math.floor(Math.random() * sources.length)];
+    const sourcePort = ports[Math.floor(Math.random() * ports.length)];
+    const destination = destinations[Math.floor(Math.random() * destinations.length)];
+    const destPort = ports[Math.floor(Math.random() * ports.length)];
+    const size = sizes[Math.floor(Math.random() * sizes.length)];
+    const timestamp = new Date().toISOString();
     
-    const id = packetIdRef.current++;
-    const position = direction === 'outgoing' ? 0 : 100;
-    const template = packetDataTemplates[type][direction];
-    
-    // Create packet data based on template
-    let packetData;
-    if (type === 'TCP') {
-      packetData = {
-        ...template,
-        sequence: template.sequence(),
-        acknowledgment: template.acknowledgment(),
-        window: template.window()
-      };
-    } else if (type === 'UDP') {
-      packetData = {
-        ...template,
-        length: template.length(),
-        checksum: template.checksum()
-      };
-    } else {
-      packetData = { ...template };
-    }
-    
-    const newPacket = { id, type, color, direction, position, data: packetData };
-    
-    setPackets(prevPackets => {
-      // Keep only the last 20 packets
-      const updatedPackets = [...prevPackets, newPacket];
-      if (updatedPackets.length > 20) {
-        return updatedPackets.slice(updatedPackets.length - 20);
+    // Generate flags for TCP
+    let flags = '';
+    if (protocol === 'TCP') {
+      const possibleFlags = ['SYN', 'ACK', 'FIN', 'RST', 'PSH'];
+      const numFlags = Math.floor(Math.random() * 3) + 1;
+      const selectedFlags = [];
+      
+      for (let i = 0; i < numFlags; i++) {
+        const flag = possibleFlags[Math.floor(Math.random() * possibleFlags.length)];
+        if (!selectedFlags.includes(flag)) {
+          selectedFlags.push(flag);
+        }
       }
-      return updatedPackets;
-    });
-  };
-
-  const startDemo = () => {
-    setDemoRunning(true);
-    setPackets([]);
-    packetIdRef.current = 0;
-    intervalRef.current = setInterval(createPacket, 1000);
-  };
-
-  const stopDemo = () => {
-    setDemoRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+      
+      flags = selectedFlags.join(', ');
     }
+    
+    // Generate payload preview
+    const payloadTypes = [
+      'Game state update',
+      'Player position data',
+      'Chat message',
+      'Authentication request',
+      'Server status query',
+      'Resource download',
+      'Matchmaking request'
+    ];
+    
+    const payload = payloadTypes[Math.floor(Math.random() * payloadTypes.length)];
+    
+    return {
+      id: Date.now() + Math.random(),
+      timestamp,
+      protocol,
+      source: `${source}:${sourcePort}`,
+      destination: `${destination}:${destPort}`,
+      size,
+      flags,
+      payload,
+      direction: Math.random() > 0.5 ? 'outgoing' : 'incoming'
+    };
   };
-
-  const selectPacket = (packet) => {
-    setSelectedPacket(packet);
+  
+  // Handle file upload for PCAP analysis simulation
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setUploadedFile(file);
+    
+    // Simulate processing a PCAP file
+    setTimeout(() => {
+      // Generate a set of realistic packets as if parsed from a PCAP
+      const simulatedPackets = Array(25).fill().map(() => generateRandomPacket());
+      setCapturedPackets(simulatedPackets);
+    }, 1000);
   };
-
+  
+  // Filter packets based on search input
+  const filteredPackets = capturedPackets.filter(packet => {
+    if (!filter) return true;
+    
+    const searchLower = filter.toLowerCase();
+    return (
+      packet.protocol.toLowerCase().includes(searchLower) ||
+      packet.source.toLowerCase().includes(searchLower) ||
+      packet.destination.toLowerCase().includes(searchLower) ||
+      packet.payload.toLowerCase().includes(searchLower)
+    );
+  });
+  
+  // Export captured packets as JSON
+  const exportCapture = () => {
+    if (capturedPackets.length === 0) return;
+    
+    const dataStr = JSON.stringify(capturedPackets, null, 2);
+    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
+    
+    const exportFileDefaultName = `packet-capture-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+  
+  // Clean up interval on component unmount
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (captureIntervalRef.current) {
+        clearInterval(captureIntervalRef.current);
       }
     };
   }, []);
-
-  const renderPacketData = () => {
-    if (!selectedPacket) {
-      return <p>Click on a packet to inspect its contents</p>;
-    }
-
-    const { type, direction, data } = selectedPacket;
-
-    if (type === 'TCP') {
-      return (
-        <div>
-          <p>Packet Type: TCP ({direction})</p>
-          <p>Source: {data.source}</p>
-          <p>Destination: {data.destination}</p>
-          <p>Flags: {data.flags}</p>
-          <p>Sequence: {data.sequence}</p>
-          <p>Acknowledgment: {data.acknowledgment}</p>
-          <p>Window: {data.window}</p>
-          <p>Payload: {data.payload}</p>
-        </div>
-      );
-    } else if (type === 'UDP') {
-      return (
-        <div>
-          <p>Packet Type: UDP ({direction})</p>
-          <p>Source: {data.source}</p>
-          <p>Destination: {data.destination}</p>
-          <p>Length: {data.length} bytes</p>
-          <p>Checksum: 0x{data.checksum}</p>
-          <p>Payload: {data.payload}</p>
-        </div>
-      );
-    } else if (type === 'HTTP') {
-      if (direction === 'outgoing') {
-        return (
-          <div>
-            <p>Packet Type: HTTP ({direction})</p>
-            <p>Method: {data.method}</p>
-            <p>URL: {data.url}</p>
-            <p>Headers:</p>
-            <ul>
-              {Object.entries(data.headers).map(([key, value]) => (
-                <li key={key}>{key}: {value}</li>
-              ))}
-            </ul>
-            {data.payload && <p>Payload: {data.payload}</p>}
-          </div>
-        );
-      } else {
-        return (
-          <div>
-            <p>Packet Type: HTTP ({direction})</p>
-            <p>Status: {data.status}</p>
-            <p>Headers:</p>
-            <ul>
-              {Object.entries(data.headers).map(([key, value]) => (
-                <li key={key}>{key}: {value}</li>
-              ))}
-            </ul>
-            <p>Payload: {data.payload}</p>
-          </div>
-        );
-      }
-    }
-  };
-
+  
   return (
     <div className={styles.container}>
       <Head>
         <title>Game Packet Sniffer | HostileWeb</title>
-        <meta name="description" content="Analyze and understand network traffic in your favorite games" />
+        <meta name="description" content="Analyze network traffic in games with our packet sniffer tool" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-      <header className={styles.header}>
-        <nav className={styles.nav}>
-          <div className={styles.logo}>
-            <Link href="/">HostileWeb</Link>
-          </div>
-          <ul className={styles.navLinks}>
-            <li><Link href="/">Home</Link></li>
-            <li><Link href="/about">About</Link></li>
-            <li><Link href="/packet-sniffer" className={styles.active}>Packet Sniffer</Link></li>
-            <li><Link href="/contact">Contact</Link></li>
-          </ul>
-        </nav>
-      </header>
-
+      
       <main className={styles.main}>
-        <section className={styles.hero}>
-          <div className={styles.heroContent}>
-            <h1>Game Packet Sniffer</h1>
-            <p>Analyze and understand network traffic in your favorite games</p>
+        <h1 className={styles.title}>Game Packet Sniffer</h1>
+        
+        <div className={styles.description}>
+          <p>
+            Analyze network traffic in your games to understand how they communicate.
+            This tool provides a simulation of packet capturing for educational purposes.
+          </p>
+          <div className={styles.warning}>
+            <p>⚠️ For educational purposes only. Real packet sniffing may violate terms of service or laws.</p>
           </div>
-        </section>
-
-        <section className={styles.infoSection}>
-          <div className={styles.container}>
-            <h2>What is Packet Sniffing?</h2>
-            <p>
-              Packet sniffing is the practice of capturing and analyzing data packets as they travel across a network. 
-              In gaming, this can be used to understand how games communicate with servers, analyze performance issues, 
-              or develop tools and modifications.
-            </p>
+        </div>
+        
+        <div className={styles.controlPanel}>
+          <div className={styles.captureControls}>
+            <button 
+              className={`${styles.button} ${styles.startButton}`}
+              onClick={startCapture}
+              disabled={isCapturing}
+            >
+              Start Capture
+            </button>
+            <button 
+              className={`${styles.button} ${styles.stopButton}`}
+              onClick={stopCapture}
+              disabled={!isCapturing}
+            >
+              Stop Capture
+            </button>
+            <button 
+              className={`${styles.button} ${styles.clearButton}`}
+              onClick={clearCapture}
+              disabled={capturedPackets.length === 0}
+            >
+              Clear
+            </button>
+            <button 
+              className={`${styles.button} ${styles.exportButton}`}
+              onClick={exportCapture}
+              disabled={capturedPackets.length === 0}
+            >
+              Export JSON
+            </button>
+          </div>
+          
+          <div className={styles.fileUpload}>
+            <label className={styles.fileInputLabel}>
+              Upload PCAP File (Demo)
+              <input 
+                type="file" 
+                accept=".pcap,.pcapng" 
+                onChange={handleFileUpload} 
+                className={styles.fileInput}
+              />
+            </label>
+            {uploadedFile && (
+              <span className={styles.fileName}>
+                {uploadedFile.name} ({Math.round(uploadedFile.size / 1024)} KB)
+              </span>
+            )}
+          </div>
+          
+          <div className={styles.filterContainer}>
+            <input
+              type="text"
+              placeholder="Filter packets (protocol, IP, payload...)"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className={styles.filterInput}
+            />
+          </div>
+        </div>
+        
+        <div className={styles.packetAnalyzer}>
+          <div className={styles.packetList}>
+            <div className={styles.packetHeader}>
+              <div className={styles.packetHeaderItem} style={{ width: '10%' }}>Protocol</div>
+              <div className={styles.packetHeaderItem} style={{ width: '20%' }}>Source</div>
+              <div className={styles.packetHeaderItem} style={{ width: '20%' }}>Destination</div>
+              <div className={styles.packetHeaderItem} style={{ width: '10%' }}>Size</div>
+              <div className={styles.packetHeaderItem} style={{ width: '15%' }}>Direction</div>
+              <div className={styles.packetHeaderItem} style={{ width: '25%' }}>Payload</div>
+            </div>
             
-            <div className={styles.warningBox}>
-              <h3>⚠️ Important Notice</h3>
-              <p>
-                Packet sniffing should only be used for educational purposes or on networks you own. 
-                Using packet sniffers to intercept data on public networks without authorization may be illegal 
-                in many jurisdictions and against the terms of service of most games.
-              </p>
+            <div className={styles.packetRows}>
+              {filteredPackets.length > 0 ? (
+                filteredPackets.map(packet => (
+                  <div 
+                    key={packet.id} 
+                    className={`${styles.packetRow} ${selectedPacket?.id === packet.id ? styles.selectedPacket : ''}`}
+                    onClick={() => setSelectedPacket(packet)}
+                  >
+                    <div className={styles.packetCell} style={{ width: '10%' }}>{packet.protocol}</div>
+                    <div className={styles.packetCell} style={{ width: '20%' }}>{packet.source}</div>
+                    <div className={styles.packetCell} style={{ width: '20%' }}>{packet.destination}</div>
+                    <div className={styles.packetCell} style={{ width: '10%' }}>{packet.size} bytes</div>
+                    <div className={styles.packetCell} style={{ width: '15%' }}>{packet.direction}</div>
+                    <div className={styles.packetCell} style={{ width: '25%' }}>{packet.payload}</div>
+                  </div>
+                ))
+              ) : (
+                <div className={styles.noPackets}>
+                  {isCapturing ? 'Waiting for packets...' : 'No packets captured. Click "Start Capture" to begin.'}
+                </div>
+              )}
             </div>
           </div>
-        </section>
-
-        <section className={styles.features}>
-          <div className={styles.container}>
-            <h2>Applications in Gaming</h2>
-            <div className={styles.featureGrid}>
-              <div className={styles.featureCard}>
-                <h3>Performance Analysis</h3>
-                <p>Identify network-related performance issues and bottlenecks in online games.</p>
+          
+          <div className={styles.packetDetails}>
+            <h3>Packet Details</h3>
+            {selectedPacket ? (
+              <div className={styles.packetInfo}>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Timestamp:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.timestamp}</span>
+                </div>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Protocol:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.protocol}</span>
+                </div>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Source:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.source}</span>
+                </div>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Destination:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.destination}</span>
+                </div>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Size:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.size} bytes</span>
+                </div>
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Direction:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.direction}</span>
+                </div>
+                {selectedPacket.flags && (
+                  <div className={styles.packetInfoRow}>
+                    <span className={styles.packetInfoLabel}>Flags:</span>
+                    <span className={styles.packetInfoValue}>{selectedPacket.flags}</span>
+                  </div>
+                )}
+                <div className={styles.packetInfoRow}>
+                  <span className={styles.packetInfoLabel}>Payload:</span>
+                  <span className={styles.packetInfoValue}>{selectedPacket.payload}</span>
+                </div>
+                
+                <div className={styles.hexDump}>
+                  <h4>Hex Dump (Simulated)</h4>
+                  <pre className={styles.hexContent}>
+                    {generateHexDump(selectedPacket)}
+                  </pre>
+                </div>
               </div>
-              <div className={styles.featureCard}>
-                <h3>Game Development</h3>
-                <p>Understand how successful games implement their networking code.</p>
+            ) : (
+              <div className={styles.noPacketSelected}>
+                Select a packet to view details
               </div>
-              <div className={styles.featureCard}>
-                <h3>Security Research</h3>
-                <p>Discover potential vulnerabilities in game networking protocols.</p>
-              </div>
-              <div className={styles.featureCard}>
-                <h3>Custom Tools</h3>
-                <p>Develop companion apps or tools that enhance gameplay experience.</p>
-              </div>
-            </div>
+            )}
           </div>
-        </section>
-
-        <section className={styles.demoSection}>
-          <div className={styles.container}>
-            <h2>Interactive Packet Visualization</h2>
-            <p>See a simplified demonstration of how packet sniffing works:</p>
-            <div className={styles.demoContainer}>
-              <div className={styles.networkVisualization}>
-                <div className={styles.client}>
-                  <div className={styles.deviceIcon}>💻</div>
-                  <div className={styles.deviceLabel}>Client</div>
-                </div>
-                <div className={styles.packetStream} ref={packetStreamRef}>
-                  {packets.map(packet => (
-                    <div
-                      key={packet.id}
-                      className={`${styles.packet} ${selectedPacket?.id === packet.id ? styles.selected : ''}`}
-                      style={{
-                        backgroundColor: packet.color,
-                        left: `${packet.direction === 'outgoing' ? 
-                          (packet.id % 20) * 5 : 
-                          100 - (packet.id % 20) * 5}%`
-                      }}
-                      onClick={() => selectPacket(packet)}
-                    />
-                  ))}
-                </div>
-                <div className={styles.server}>
-                  <div className={styles.deviceIcon}>🖥️</div>
-                  <div className={styles.deviceLabel}>Server</div>
-                </div>
-              </div>
-              <div className={styles.packetInspector}>
-                <h3>Packet Inspector</h3>
-                <div className={styles.packetData}>
-                  {renderPacketData()}
-                </div>
-              </div>
-              <div className={styles.controls}>
-                <button 
-                  className={styles.startButton}
-                  onClick={startDemo}
-                  disabled={demoRunning}
-                >
-                  Start Demo
-                </button>
-                <button 
-                  className={styles.stopButton}
-                  onClick={stopDemo}
-                  disabled={!demoRunning}
-                >
-                  Stop Demo
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.toolsSection}>
-          <div className={styles.container}>
-            <h2>Popular Packet Sniffing Tools</h2>
-            <div className={styles.toolsGrid}>
-              <div className={styles.toolCard}>
-                <h3>Wireshark</h3>
-                <p>The industry standard for network protocol analysis. Free and open-source.</p>
-                <a href="https://www.wireshark.org/" target="_blank" rel="noopener noreferrer" className={styles.button}>Learn More</a>
-              </div>
-              <div className={styles.toolCard}>
-                <h3>tcpdump</h3>
-                <p>A powerful command-line packet analyzer for Unix-like systems.</p>
-                <a href="https://www.tcpdump.org/" target="_blank" rel="noopener noreferrer" className={styles.button}>Learn More</a>
-              </div>
-              <div className={styles.toolCard}>
-                <h3>Fiddler</h3>
-                <p>Web debugging proxy that can capture HTTP/HTTPS traffic.</p>
-                <a href="https://www.telerik.com/fiddler" target="_blank" rel="noopener noreferrer" className={styles.button}>Learn More</a>
-              </div>
-            </div>
-          </div>
-        </section>
+        </div>
+        
+        <div className={styles.infoSection}>
+          <h2>About Game Packet Sniffing</h2>
+          <p>
+            Packet sniffing is the process of capturing and analyzing data packets that travel across a network.
+            For gamers and developers, understanding network traffic can help:
+          </p>
+          <ul>
+            <li>Diagnose connection issues and lag</li>
+            <li>Understand how games communicate with servers</li>
+            <li>Analyze bandwidth usage</li>
+            <li>Identify potential security vulnerabilities</li>
+          </ul>
+          <p>
+            Popular tools for real packet analysis include Wireshark, tcpdump, and specialized
+            game networking tools. This simulation demonstrates the concept without requiring
+            special permissions or potentially violating terms of service.
+          </p>
+        </div>
       </main>
-
+      
       <footer className={styles.footer}>
-        <div className={styles.container}>
-          <p>&copy; {new Date().getFullYear()} HostileWeb. All rights reserved.</p>
-          <p>Educational purposes only. Use
+        <p>© {new Date().getFullYear()} HostileWeb | Educational purposes only</p>
+        <Link href="/">Back to Home</Link>
+      </footer>
+    </div>
+  );
+}
+
+// Helper function to generate a simulated hex dump
+function generateHexDump(packet) {
+  const lines = [];
+  const bytes = [];
+  
+  // Generate pseudo-random bytes based on packet properties
+  const seed = packet.id.toString() + packet.source + packet.destination;
+  let seedValue = 0;
+  for (let i = 0; i < seed.length; i++) {
+    seedValue += seed.charCodeAt(i);
+  }
+  
+  for (let i = 0; i < packet.size; i++) {
